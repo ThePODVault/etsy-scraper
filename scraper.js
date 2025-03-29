@@ -1,4 +1,7 @@
-const playwright = require("playwright");
+const { chromium } = require("playwright-extra");
+const stealth = require("playwright-extra-plugin-stealth")();
+
+chromium.use(stealth);
 
 const USER_AGENTS = [
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/119.0.0.0 Safari/537.36",
@@ -11,7 +14,7 @@ function randomDelay(min = 1500, max = 3500) {
 }
 
 async function scrapeEtsy(listingUrl) {
-  const browser = await playwright.chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     userAgent: USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)],
     viewport: { width: 1280, height: 800 }
@@ -19,20 +22,16 @@ async function scrapeEtsy(listingUrl) {
 
   const page = await context.newPage();
 
-  // Load listing page
   await page.goto(listingUrl, { waitUntil: "networkidle" });
   await randomDelay();
 
-  // DEBUG: Log HTML to Render logs to inspect layout (temporary)
   const html = await page.content();
   console.log("=== LISTING PAGE HTML START ===");
-  console.log(html.slice(0, 8000)); // Show a portion of the HTML
+  console.log(html.slice(0, 8000));
   console.log("=== LISTING PAGE HTML END ===");
 
   const listingData = await page.evaluate(() => {
     const getText = sel => document.querySelector(sel)?.innerText?.trim() || "N/A";
-
-    // Broader fallback to locate any /shop/ link
     const shopLink = Array.from(document.querySelectorAll("a")).find(a =>
       a.href.includes("/shop/")
     );
@@ -55,7 +54,6 @@ async function scrapeEtsy(listingUrl) {
     throw new Error("Shop URL not found from listing page.");
   }
 
-  // Load shop page
   await page.goto(listingData.shopUrl, { waitUntil: "networkidle" });
   await randomDelay();
 
