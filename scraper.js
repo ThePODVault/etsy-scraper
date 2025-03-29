@@ -24,11 +24,16 @@ async function scrapeEtsy(listingUrl) {
 
   const listingData = await page.evaluate(() => {
     const getText = sel => document.querySelector(sel)?.innerText?.trim() || "N/A";
+
+    const shopLink = document.querySelector("a[href*='/shop/']");
+    const title = getText("h1[data-buy-box-listing-title]") || getText("h1");
+    const price = getText("[data-buy-box-region='price'] span[class*='currency-value']") || getText("[data-selector='price']");
+
     return {
-      title: getText("h1[data-buy-box-listing-title]"),
-      price: getText("[data-buy-box-region='price'] span[class*='currency-value']"),
-      shopName: getText("a[data-buy-box-region='shop-name']"),
-      shopUrl: document.querySelector("a[data-buy-box-region='shop-name']")?.href || "",
+      title,
+      price,
+      shopName: shopLink?.innerText?.trim() || "N/A",
+      shopUrl: shopLink?.href || "",
       reviews: getText("span[data-buy-box-region='review-rating']"),
       listingUrl: location.href
     };
@@ -47,10 +52,11 @@ async function scrapeEtsy(listingUrl) {
     const stats = Array.from(document.querySelectorAll("[data-shop-home-header-section] span"))
       .map(el => el.innerText)
       .filter(Boolean);
+
     return {
-      rating: getText("[aria-label*='stars']"),
+      rating: getText("[aria-label*='stars']") || "N/A",
       sales: stats.find(s => s.includes(" Sales")) || "N/A",
-      reviews: getText("[data-average-rating]"),
+      reviews: getText("[data-average-rating]") || "N/A"
     };
   });
 
@@ -60,9 +66,9 @@ async function scrapeEtsy(listingUrl) {
   while (nextPage) {
     const items = await page.$$eval("li.wt-list-unstyled > div > a", anchors =>
       anchors.map(a => ({
-        title: a.querySelector("h3")?.innerText.trim(),
+        title: a.querySelector("h3")?.innerText.trim() || "N/A",
         url: a.href,
-        price: a.querySelector(".currency-value")?.innerText.trim(),
+        price: a.querySelector(".currency-value")?.innerText.trim() || "N/A"
       }))
     );
     listings.push(...items);
@@ -84,7 +90,7 @@ async function scrapeEtsy(listingUrl) {
     shop: {
       name: listingData.shopName,
       url: listingData.shopUrl,
-      ...shopMeta,
+      ...shopMeta
     },
     listings
   };
