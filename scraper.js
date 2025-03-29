@@ -19,15 +19,29 @@ async function scrapeEtsy(listingUrl) {
 
   const page = await context.newPage();
 
-  await page.goto(listingUrl, { waitUntil: "domcontentloaded" });
+  // Load listing page
+  await page.goto(listingUrl, { waitUntil: "networkidle" });
   await randomDelay();
+
+  // DEBUG: Log the HTML to Render logs to inspect layout (can remove later)
+  const html = await page.content();
+  console.log("=== LISTING PAGE HTML START ===");
+  console.log(html.slice(0, 10000)); // only show part of it
+  console.log("=== LISTING PAGE HTML END ===");
 
   const listingData = await page.evaluate(() => {
     const getText = sel => document.querySelector(sel)?.innerText?.trim() || "N/A";
 
-    const shopLink = document.querySelector("a[href*='/shop/']");
-    const title = getText("h1[data-buy-box-listing-title]") || getText("h1");
-    const price = getText("[data-buy-box-region='price'] span[class*='currency-value']") || getText("[data-selector='price']");
+    // BROADER fallback to locate any /shop/ link
+    const shopLink = Array.from(document.querySelectorAll("a")).find(a =>
+      a.href.includes("/shop/")
+    );
+
+    const title =
+      getText("h1[data-buy-box-listing-title]") || getText("h1");
+    const price =
+      getText("[data-buy-box-region='price'] span[class*='currency-value']") ||
+      getText("[data-selector='price']");
 
     return {
       title,
@@ -44,7 +58,8 @@ async function scrapeEtsy(listingUrl) {
     throw new Error("Shop URL not found from listing page.");
   }
 
-  await page.goto(listingData.shopUrl, { waitUntil: "domcontentloaded" });
+  // Load shop page
+  await page.goto(listingData.shopUrl, { waitUntil: "networkidle" });
   await randomDelay();
 
   const shopMeta = await page.evaluate(() => {
@@ -76,7 +91,7 @@ async function scrapeEtsy(listingUrl) {
     const nextButton = await page.$("nav[role='navigation'] a[aria-label='Next page']");
     if (nextButton) {
       await nextButton.click();
-      await page.waitForLoadState("domcontentloaded");
+      await page.waitForLoadState("networkidle");
       await randomDelay();
     } else {
       nextPage = false;
