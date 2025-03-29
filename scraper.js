@@ -1,7 +1,7 @@
-const { chromium } = require("playwright-extra");
-const stealth = require("playwright-extra-plugin-stealth")();
+const puppeteer = require("puppeteer-extra");
+const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 
-chromium.use(stealth);
+puppeteer.use(StealthPlugin());
 
 const USER_AGENTS = [
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/119.0.0.0 Safari/537.36",
@@ -14,15 +14,16 @@ function randomDelay(min = 1500, max = 3500) {
 }
 
 async function scrapeEtsy(listingUrl) {
-  const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({
-    userAgent: USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)],
-    viewport: { width: 1280, height: 800 }
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"]
   });
 
-  const page = await context.newPage();
+  const page = await browser.newPage();
+  await page.setUserAgent(USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]);
+  await page.setViewport({ width: 1280, height: 800 });
 
-  await page.goto(listingUrl, { waitUntil: "networkidle" });
+  await page.goto(listingUrl, { waitUntil: "networkidle2" });
   await randomDelay();
 
   const html = await page.content();
@@ -32,6 +33,7 @@ async function scrapeEtsy(listingUrl) {
 
   const listingData = await page.evaluate(() => {
     const getText = sel => document.querySelector(sel)?.innerText?.trim() || "N/A";
+
     const shopLink = Array.from(document.querySelectorAll("a")).find(a =>
       a.href.includes("/shop/")
     );
@@ -54,7 +56,7 @@ async function scrapeEtsy(listingUrl) {
     throw new Error("Shop URL not found from listing page.");
   }
 
-  await page.goto(listingData.shopUrl, { waitUntil: "networkidle" });
+  await page.goto(listingData.shopUrl, { waitUntil: "networkidle2" });
   await randomDelay();
 
   const shopMeta = await page.evaluate(() => {
@@ -83,10 +85,10 @@ async function scrapeEtsy(listingUrl) {
     );
     listings.push(...items);
 
-    const nextButton = await page.$("nav[role='navigation'] a[aria-label='Next page']");
-    if (nextButton) {
-      await nextButton.click();
-      await page.waitForLoadState("networkidle");
+    const nextBtn = await page.$("nav[role='navigation'] a[aria-label='Next page']");
+    if (nextBtn) {
+      await nextBtn.click();
+      await page.waitForNavigation({ waitUntil: "networkidle2" });
       await randomDelay();
     } else {
       nextPage = false;
