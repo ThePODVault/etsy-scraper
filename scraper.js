@@ -23,25 +23,22 @@ async function scrapeEtsy(listingUrl) {
   await page.goto(listingUrl, { waitUntil: "networkidle" });
   await randomDelay();
 
-  // DEBUG: Log the HTML to Render logs to inspect layout (can remove later)
+  // DEBUG: Log HTML to Render logs to inspect layout (temporary)
   const html = await page.content();
   console.log("=== LISTING PAGE HTML START ===");
-  console.log(html.slice(0, 10000)); // only show part of it
+  console.log(html.slice(0, 8000)); // Show a portion of the HTML
   console.log("=== LISTING PAGE HTML END ===");
 
   const listingData = await page.evaluate(() => {
     const getText = sel => document.querySelector(sel)?.innerText?.trim() || "N/A";
 
-    // BROADER fallback to locate any /shop/ link
+    // Broader fallback to locate any /shop/ link
     const shopLink = Array.from(document.querySelectorAll("a")).find(a =>
       a.href.includes("/shop/")
     );
 
-    const title =
-      getText("h1[data-buy-box-listing-title]") || getText("h1");
-    const price =
-      getText("[data-buy-box-region='price'] span[class*='currency-value']") ||
-      getText("[data-selector='price']");
+    const title = getText("h1[data-buy-box-listing-title]") || getText("h1");
+    const price = getText("[data-buy-box-region='price'] span[class*='currency-value']") || getText("[data-selector='price']");
 
     return {
       title,
