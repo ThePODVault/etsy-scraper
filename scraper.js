@@ -3,10 +3,18 @@ const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 
 puppeteer.use(StealthPlugin());
 
-const USER_AGENTS = [
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/119.0.0.0 Safari/537.36",
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Safari/537.36",
-  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/118.0.5993.117 Safari/537.36"
+// Webshare proxy list (rotates per request)
+const proxyList = [
+  "http://krgfsmic:d25c63hupt8f@38.154.227.167:5868",
+  "http://krgfsmic:d25c63hupt8f@38.153.152.244:9594",
+  "http://krgfsmic:d25c63hupt8f@86.38.234.176:6630",
+  "http://krgfsmic:d25c63hupt8f@173.211.0.148:6641",
+  "http://krgfsmic:d25c63hupt8f@161.123.152.115:6360",
+  "http://krgfsmic:d25c63hupt8f@216.10.27.159:6837",
+  "http://krgfsmic:d25c63hupt8f@154.36.110.199:6853",
+  "http://krgfsmic:d25c63hupt8f@45.151.162.198:6600",
+  "http://krgfsmic:d25c63hupt8f@185.199.229.156:7492",
+  "http://krgfsmic:d25c63hupt8f@185.199.228.220:7300"
 ];
 
 function randomDelay(min = 1500, max = 3500) {
@@ -14,15 +22,29 @@ function randomDelay(min = 1500, max = 3500) {
 }
 
 async function scrapeEtsy(listingUrl) {
+  const randomProxy = proxyList[Math.floor(Math.random() * proxyList.length)];
+  console.log("🌀 Using proxy:", randomProxy);
+
   const browser = await puppeteer.launch({
-  headless: true,
-  executablePath: '/usr/bin/chromium',
-  args: ["--no-sandbox", "--disable-setuid-sandbox"]
-});
+    headless: true,
+    executablePath: "/usr/bin/chromium",
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      `--proxy-server=${randomProxy}`
+    ]
+  });
 
   const page = await browser.newPage();
-  await page.setUserAgent(USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]);
-  await page.setViewport({ width: 1280, height: 800 });
+
+  // Optional: confirm IP is via proxy
+  try {
+    await page.goto("https://api.ipify.org?format=json", { waitUntil: "networkidle2" });
+    const currentIP = await page.evaluate(() => document.body.innerText);
+    console.log("✅ Current IP:", currentIP);
+  } catch (e) {
+    console.warn("⚠️ Failed to fetch current IP");
+  }
 
   await page.goto(listingUrl, { waitUntil: "networkidle2" });
   await randomDelay();
@@ -34,17 +56,13 @@ async function scrapeEtsy(listingUrl) {
 
   const listingData = await page.evaluate(() => {
     const getText = sel => document.querySelector(sel)?.innerText?.trim() || "N/A";
-
     const shopLink = Array.from(document.querySelectorAll("a")).find(a =>
       a.href.includes("/shop/")
     );
 
-    const title = getText("h1[data-buy-box-listing-title]") || getText("h1");
-    const price = getText("[data-buy-box-region='price'] span[class*='currency-value']") || getText("[data-selector='price']");
-
     return {
-      title,
-      price,
+      title: getText("h1[data-buy-box-listing-title]") || getText("h1"),
+      price: getText("[data-buy-box-region='price'] span[class*='currency-value']") || getText("[data-selector='price']"),
       shopName: shopLink?.innerText?.trim() || "N/A",
       shopUrl: shopLink?.href || "",
       reviews: getText("span[data-buy-box-region='review-rating']"),
@@ -86,9 +104,9 @@ async function scrapeEtsy(listingUrl) {
     );
     listings.push(...items);
 
-    const nextBtn = await page.$("nav[role='navigation'] a[aria-label='Next page']");
-    if (nextBtn) {
-      await nextBtn.click();
+    const nextButton = await page.$("nav[role='navigation'] a[aria-label='Next page']");
+    if (nextButton) {
+      await nextButton.click();
       await page.waitForNavigation({ waitUntil: "networkidle2" });
       await randomDelay();
     } else {
