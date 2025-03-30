@@ -15,9 +15,10 @@ function randomDelay(min = 1500, max = 3500) {
 
 async function scrapeEtsy(listingUrl) {
   const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"]
-  });
+  headless: true,
+  executablePath: '/usr/bin/chromium',
+  args: ["--no-sandbox", "--disable-setuid-sandbox"]
+});
 
   const page = await browser.newPage();
   await page.setUserAgent(USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]);
