@@ -2,34 +2,34 @@ import puppeteer from "puppeteer";
 import fs from "fs";
 import path from "path";
 
+// Dynamically resolve directory in ES modules
 const __dirname = path.resolve();
 const proxyListPath = path.join(__dirname, "proxies.txt");
 
-// Load and format proxy list
+// Load proxies from proxies.txt (format: IP:PORT:USER:PASS)
 const rawProxies = fs.readFileSync(proxyListPath, "utf-8")
   .split("\n")
+  .map(line => line.trim())
   .filter(Boolean);
 
 function getRandomProxy() {
-  const line = rawProxies[Math.floor(Math.random() * rawProxies.length)];
-  const [ip, port, user, pass] = line.trim().split(":");
+  const [ip, port, user, pass] = rawProxies[Math.floor(Math.random() * rawProxies.length)].split(":");
   return { ip, port, user, pass };
 }
 
 export async function scrapeEtsy(url) {
   const { ip, port, user, pass } = getRandomProxy();
   const proxyServer = `socks5://${ip}:${port}`;
-
   console.log(`🌐 Using proxy: ${proxyServer}`);
 
   const browser = await puppeteer.launch({
     headless: "new",
+    executablePath: puppeteer.executablePath(), // ⬅️ Use bundled Chromium
     args: [`--proxy-server=${proxyServer}`, "--no-sandbox"]
   });
 
   try {
     const page = await browser.newPage();
-
     await page.authenticate({ username: user, password: pass });
 
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
@@ -55,7 +55,7 @@ export async function scrapeEtsy(url) {
 
   } catch (err) {
     await browser.close();
-    console.error("❌ Scraping error:", err.message);
-    throw err;
+    console.error("❌ Scraping failed:", err.message);
+    throw new Error(err.message);
   }
 }
