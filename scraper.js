@@ -1,55 +1,40 @@
-const puppeteer = require("puppeteer");
-const fs = require("fs");
-const path = require("path");
+import puppeteer from "puppeteer";
+import fs from "fs";
+import path from "path";
 
-// Load SOCKS5 proxies from file
+const __dirname = path.resolve();
 const proxyListPath = path.join(__dirname, "proxies.txt");
-const rawProxies = fs.readFileSync(proxyListPath, "utf-8").split("\n").filter(Boolean);
 
-// Transform into proper proxy URLs
-const proxies = rawProxies.map(line => {
-  const [ip, port, user, pass] = line.trim().split(":");
-  return `socks5://${user}:${pass}@${ip}:${port}`;
-});
+// Load and format proxy list
+const rawProxies = fs.readFileSync(proxyListPath, "utf-8")
+  .split("\n")
+  .filter(Boolean);
 
 function getRandomProxy() {
-  return proxies[Math.floor(Math.random() * proxies.length)];
+  const line = rawProxies[Math.floor(Math.random() * rawProxies.length)];
+  const [ip, port, user, pass] = line.trim().split(":");
+  return { ip, port, user, pass };
 }
 
-async function scrapeEtsy(url) {
-  const proxyUrl = getRandomProxy();
+export async function scrapeEtsy(url) {
+  const { ip, port, user, pass } = getRandomProxy();
+  const proxyServer = `socks5://${ip}:${port}`;
 
-  console.log(`🌐 Using proxy: ${proxyUrl}`);
+  console.log(`🌐 Using proxy: ${proxyServer}`);
 
-  const [protocol, authHost] = proxyUrl.split("://");
-  const [auth, host] = authHost.split("@");
-  const [proxyUser, proxyPass] = auth.split(":");
-  const [proxyHost, proxyPort] = host.split(":");
-
-  const launchOptions = {
+  const browser = await puppeteer.launch({
     headless: "new",
-    args: [
-      `--proxy-server=${protocol}://${proxyHost}:${proxyPort}`,
-      "--no-sandbox",
-      "--disable-setuid-sandbox"
-    ]
-  };
-
-  let browser;
+    args: [`--proxy-server=${proxyServer}`, "--no-sandbox"]
+  });
 
   try {
-    browser = await puppeteer.launch(launchOptions);
     const page = await browser.newPage();
 
-    // Authenticate proxy
-    await page.authenticate({
-      username: proxyUser,
-      password: proxyPass
-    });
+    await page.authenticate({ username: user, password: pass });
 
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
 
-    const result = await page.evaluate(() => {
+    const data = await page.evaluate(() => {
       const title = document.querySelector("h1[data-buy-box-listing-title]")?.innerText;
       const price = document.querySelector("[data-buy-box-region='price']")?.innerText;
       const shopName = document.querySelector("div[data-region='shop-name'] span a")?.innerText;
@@ -66,13 +51,11 @@ async function scrapeEtsy(url) {
     });
 
     await browser.close();
-    return result;
+    return data;
 
   } catch (err) {
-    if (browser) await browser.close();
+    await browser.close();
     console.error("❌ Scraping error:", err.message);
     throw err;
   }
 }
-
-module.exports = { scrapeEtsy };
