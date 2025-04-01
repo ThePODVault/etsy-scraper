@@ -3,7 +3,7 @@ const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 
 puppeteer.use(StealthPlugin());
 
-// ✅ SOCKS5 proxies (Webshare Premium)
+// ✅ Webshare SOCKS5 proxies (first 10 for now — we can expand)
 const proxyList = [
   "socks5://krgfsmic:d25c63hupt8f@45.43.82.186:6180",
   "socks5://krgfsmic:d25c63hupt8f@156.243.179.82:6570",
@@ -26,7 +26,7 @@ async function scrapeEtsy(listingUrl) {
   console.log("🌀 Using proxy:", proxy);
 
   const browser = await puppeteer.launch({
-    headless: "new", // use modern headless mode
+    headless: "new",
     executablePath: "/usr/bin/chromium",
     args: [
       "--no-sandbox",
@@ -38,9 +38,14 @@ async function scrapeEtsy(listingUrl) {
   const page = await browser.newPage();
 
   try {
-    // Go to listing
+    // 🔍 Optional: Confirm which IP is being used
+    await page.goto("https://api.ipify.org?format=json", { timeout: 15000 });
+    const ipUsed = await page.evaluate(() => document.body.innerText);
+    console.log("🔐 Proxy IP used:", ipUsed);
+
+    // 🌟 Go to Etsy listing
     await page.goto(listingUrl, { waitUntil: "domcontentloaded", timeout: 45000 });
-    await delay(2000);
+    await delay(1500);
 
     const listingData = await page.evaluate(() => {
       const getText = sel => document.querySelector(sel)?.innerText?.trim() || "N/A";
@@ -50,10 +55,10 @@ async function scrapeEtsy(listingUrl) {
 
       return {
         title: getText("h1[data-buy-box-listing-title]") || getText("h1"),
-        price: getText("[data-buy-box-region='price'] span[class*='currency-value']") || getText("[data-selector='price']"),
+        price: getText("[data-buy-box-region='price'] span[class*='currency-value']") || "N/A",
         shopName: shopLink?.innerText?.trim() || "N/A",
         shopUrl: shopLink?.href || "",
-        reviews: getText("span[data-buy-box-region='review-rating']"),
+        reviews: getText("span[data-buy-box-region='review-rating']") || "N/A",
         listingUrl: location.href
       };
     });
@@ -62,7 +67,7 @@ async function scrapeEtsy(listingUrl) {
       throw new Error("Shop URL not found from listing page.");
     }
 
-    // Go to shop page
+    // 🌐 Go to shop page
     await page.goto(listingData.shopUrl, { waitUntil: "domcontentloaded", timeout: 45000 });
     await delay(1500);
 
