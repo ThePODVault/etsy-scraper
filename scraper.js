@@ -1,15 +1,17 @@
 import puppeteer from "puppeteer";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 
-// Dynamically resolve directory in ES modules
-const __dirname = path.resolve();
+// Get __dirname in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const proxyListPath = path.join(__dirname, "proxies.txt");
 
-// Load proxies from proxies.txt (format: IP:PORT:USER:PASS)
+// Read proxy list
 const rawProxies = fs.readFileSync(proxyListPath, "utf-8")
   .split("\n")
-  .map(line => line.trim())
+  .map(l => l.trim())
   .filter(Boolean);
 
 function getRandomProxy() {
@@ -24,7 +26,7 @@ export async function scrapeEtsy(url) {
 
   const browser = await puppeteer.launch({
     headless: "new",
-    executablePath: puppeteer.executablePath(), // ⬅️ Use bundled Chromium
+    executablePath: puppeteer.executablePath(), // ✅ uses Puppeteer's bundled Chromium
     args: [`--proxy-server=${proxyServer}`, "--no-sandbox"]
   });
 
@@ -55,7 +57,7 @@ export async function scrapeEtsy(url) {
 
   } catch (err) {
     await browser.close();
-    console.error("❌ Scraping failed:", err.message);
+    console.error("❌ Scraping error:", err.message);
     throw new Error(err.message);
   }
 }
