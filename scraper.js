@@ -3,15 +3,15 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-// Get __dirname in ES modules
+// Get __dirname in ES module format
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const proxyListPath = path.join(__dirname, "proxies.txt");
 
-// Read proxy list
+// Load proxy list
+const proxyListPath = path.join(__dirname, "proxies.txt");
 const rawProxies = fs.readFileSync(proxyListPath, "utf-8")
   .split("\n")
-  .map(l => l.trim())
+  .map(line => line.trim())
   .filter(Boolean);
 
 function getRandomProxy() {
@@ -26,7 +26,7 @@ export async function scrapeEtsy(url) {
 
   const browser = await puppeteer.launch({
     headless: "new",
-    executablePath: puppeteer.executablePath(), // ✅ uses Puppeteer's bundled Chromium
+    executablePath: puppeteer.executablePath(), // ✅ Use bundled Chromium
     args: [`--proxy-server=${proxyServer}`, "--no-sandbox"]
   });
 
