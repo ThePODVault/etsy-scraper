@@ -1,10 +1,12 @@
 const express = require("express");
 const { scrapeEtsy } = require("./scraper");
+
 const app = express();
 const PORT = process.env.PORT || 10000;
 
 app.get("/analyze", async (req, res) => {
   const { url } = req.query;
+
   if (!url || !url.includes("etsy.com/listing")) {
     return res.status(400).json({ error: "Invalid or missing Etsy listing URL" });
   }
