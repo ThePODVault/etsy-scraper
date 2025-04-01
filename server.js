@@ -1,8 +1,8 @@
-const express = require("express");
-const { scrapeEtsy } = require("./scraper");
+import express from "express";
+import { scrapeEtsy } from "./scraper.js";
 
 const app = express();
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 8080;
 
 app.get("/analyze", async (req, res) => {
   const { url } = req.query;
